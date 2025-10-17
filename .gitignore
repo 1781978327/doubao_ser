@@ -1,0 +1,22 @@
+# 排除打包产物目录（包含 exe、pkg 等大文件）
+dist/
+build/
+
+# 排除虚拟环境（体积大且无需提交）
+py64/
+venv/
+env/
+
+# 排除 Python 缓存文件
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# 排除日志和临时文件
+*.log
+*.tmp
+
+# 排除截图目录（如果客户端已处理，服务端无需提交）
+screenshots/
+received_screenshots/
