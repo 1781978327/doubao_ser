@@ -1,0 +1,20 @@
+# ---------------------- 核心功能依赖 ----------------------
+# 1. PyQt5 UI框架（窗口、线程、组件必需）
+PyQt5==5.15.10          # 代码中直接导入：PyQt5.QtWidgets、QtCore
+PyQt5-sip==12.17.0      # PyQt5底层依赖，确保正常运行
+PyQt5-Qt5==5.15.2       # PyQt5配套Qt库，避免UI渲染错误
+
+# 2. AI接口依赖（OpenAI调用必需）
+openai==1.78.1          # 代码中直接导入：from openai import OpenAI
+
+# 3. 文件监控依赖（监控截图目录必需）
+watchdog==6.0.0         # 代码中直接导入：watchdog.observers、FileSystemEventHandler
+
+# 4. 图片/格式处理依赖（功能隐含必需）
+pybase64==1.4.2         # 截图传输Base64编码（服务端与客户端通信可能用到）
+Markdown==3.9           # AI结果Markdown格式化（ui_components显示需）
+pillow==11.3.0          # 图片读取/显示（UI展示截图需，避免报错）
+
+# ---------------------- 打包工具依赖 ----------------------
+pyinstaller==6.3.0                  # 生成exe必需（对应打包.bat和spec文件）
+pyinstaller-hooks-contrib==2025.4   # pyinstaller钩子依赖，确保打包完整
