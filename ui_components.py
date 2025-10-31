@@ -5,6 +5,7 @@ from datetime import datetime
 from PyQt5.QtWidgets import (QMainWindow, QPushButton, QLabel, QTextEdit, 
                              QVBoxLayout, QHBoxLayout, QWidget, QFileDialog, 
                              QLineEdit, QDialog, QMessageBox, QApplication, QComboBox)
+import markdown as md
 from PyQt5.QtGui import QPixmap, QFont, QTextCursor
 from PyQt5.QtCore import Qt, QTimer
 from config import (MARKDOWN_CSS,
@@ -371,8 +372,8 @@ class ImageChatMainWindow(QMainWindow):
         # 显示AI分析结果
         self.is_ai_busy = False
         self.append_markdown(f"<div class='reasoning-tag'>📝 AI推理：</div>{reasoning}\n")
-        formatted_answer = format_markdown_with_code(answer)
-        self.append_markdown(f"<div class='ai-tag'>💡 AI回答：</div>{formatted_answer}\n")
+        # 直接将模型返回的 Markdown 交给统一渲染
+        self.append_markdown(f"<div class='ai-tag'>💡 AI回答：</div>\n\n{answer}\n")
         
         # 立即处理等待中的截图（不再固定等待）
         if self.pending_image:
@@ -435,16 +436,13 @@ class ImageChatMainWindow(QMainWindow):
         self.ai_thread.start()
 
     def append_markdown(self, md_text):
-        # 渲染Markdown并添加到对话区（调用ai_handler模块）
-        processed_md = format_markdown_with_code(md_text)
-        html = format_markdown_with_code(processed_md)  # 复用Markdown处理函数
+        # 使用 markdown 库完整渲染（支持加粗、列表、表格、围栏代码等）
+        html_body = md.markdown(md_text, extensions=["fenced_code", "tables"])
         current_html = self.history_area.toHtml()
-        
         if "body></html>" in current_html:
-            new_html = current_html.replace("</body></html>", f"{html}</body></html>")
+            new_html = current_html.replace("</body></html>", f"{html_body}</body></html>")
         else:
-            new_html = f"<html><head>{MARKDOWN_CSS}</head><body>{html}</body></html>"
-        
+            new_html = f"<html><head>{MARKDOWN_CSS}</head><body>{html_body}</body></html>"
         self.history_area.setHtml(new_html)
         self.scroll_to_bottom()
 
