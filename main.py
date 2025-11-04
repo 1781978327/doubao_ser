@@ -1,10 +1,12 @@
 # main.py：程序入口（整合所有模块）
 import sys
+import argparse
 from PyQt5.QtWidgets import QApplication
 import config  # 导入全局配置
 from ui_components import InitConfigDialog, ImageChatMainWindow
 from ai_handler import init_ai_client
 from monitor_handler import start_image_server_in_background
+from image_server import ImageServer
 
 
 def check_dependency():
@@ -24,6 +26,19 @@ def check_dependency():
 
 
 if __name__ == "__main__":
+    # 参数解析：支持自举模式启动 image server
+    parser = argparse.ArgumentParser(add_help=False)
+    parser.add_argument("--run-image-server", action="store_true")
+    parser.add_argument("--port", type=int, default=config.DEFAULT_SERVER_PORT)
+    parser.add_argument("--save-dir", type=str, default=config.DEFAULT_MONITOR_DIR)
+    args, unknown = parser.parse_known_args()
+
+    if args.run_image_server:
+        # 以自举模式运行截图接收服务（用于打包为单 exe 后的子进程）
+        server = ImageServer(save_dir=args.save_dir, port=args.port)
+        server.start()
+        sys.exit(0)
+
     # 1. 检查依赖库
     if not check_dependency():
         sys.exit(1)

@@ -139,6 +139,7 @@ class ImageChatMainWindow(QMainWindow):
         self.pending_image = None
         self.clear_timer = QTimer()
         self.auto_clear_enabled = True
+        self.auto_analyze_enabled = True  # 自动推理开关
         self.init_ui()
         self.start_monitoring()
         self.init_timers()
@@ -217,6 +218,12 @@ class ImageChatMainWindow(QMainWindow):
         self.disable_auto_clear_btn = QPushButton("关闭自动清屏")
         self.disable_auto_clear_btn.clicked.connect(self.disable_auto_clear)
         
+        self.enable_auto_analyze_btn = QPushButton("开启自动推理")
+        self.enable_auto_analyze_btn.clicked.connect(self.enable_auto_analyze)
+        
+        self.disable_auto_analyze_btn = QPushButton("关闭自动推理")
+        self.disable_auto_analyze_btn.clicked.connect(self.disable_auto_analyze)
+        
         self.send_btn = QPushButton("手动发送请求")
         self.send_btn.clicked.connect(self.send_question)
         self.send_btn.setEnabled(False)
@@ -228,6 +235,8 @@ class ImageChatMainWindow(QMainWindow):
         input_layout.addWidget(self.manual_clear_btn)
         input_layout.addWidget(self.enable_auto_clear_btn)
         input_layout.addWidget(self.disable_auto_clear_btn)
+        input_layout.addWidget(self.enable_auto_analyze_btn)
+        input_layout.addWidget(self.disable_auto_analyze_btn)
         input_layout.addWidget(self.send_btn)
         main_layout.addLayout(input_layout)
 
@@ -245,6 +254,7 @@ class ImageChatMainWindow(QMainWindow):
         if self.auto_clear_enabled:
             self.clear_timer.start()
         self.refresh_auto_clear_buttons()
+        self.refresh_auto_analyze_buttons()
 
     def show_current_config(self):
         # 显示全局配置和服务状态
@@ -263,6 +273,10 @@ class ImageChatMainWindow(QMainWindow):
             self.append_markdown(f"<div class='clear-tip'>🗑️ 自动清屏：已开启（每{config.CLEAR_INTERVAL//60}分钟清屏一次）</div>\n")
         else:
             self.append_markdown(f"<div class='clear-tip'>🗑️ 自动清屏：已关闭</div>\n")
+        if self.auto_analyze_enabled:
+            self.append_markdown(f"<div class='auto-monitor'>🤖 自动推理：已开启（新截图将自动分析）</div>\n")
+        else:
+            self.append_markdown(f"<div class='auto-monitor'>🤖 自动推理：已关闭（新截图仅保存，不自动分析）</div>\n")
 
     def auto_clear_history(self):
         # 自动清屏（保留配置信息）
@@ -313,6 +327,23 @@ class ImageChatMainWindow(QMainWindow):
             self.append_markdown("<div class='clear-tip'>🗑️ 自动清屏已关闭</div>")
             self.refresh_auto_clear_buttons()
 
+    def refresh_auto_analyze_buttons(self):
+        # 根据状态刷新自动推理启用/关闭按钮可用性
+        self.enable_auto_analyze_btn.setEnabled(not self.auto_analyze_enabled)
+        self.disable_auto_analyze_btn.setEnabled(self.auto_analyze_enabled)
+
+    def enable_auto_analyze(self):
+        if not self.auto_analyze_enabled:
+            self.auto_analyze_enabled = True
+            self.append_markdown("<div class='auto-monitor'>🤖 自动推理已开启（新截图将自动分析）</div>")
+            self.refresh_auto_analyze_buttons()
+
+    def disable_auto_analyze(self):
+        if self.auto_analyze_enabled:
+            self.auto_analyze_enabled = False
+            self.append_markdown("<div class='auto-monitor'>🤖 自动推理已关闭（新截图仅保存，不自动分析）</div>")
+            self.refresh_auto_analyze_buttons()
+
     def on_model_changed(self, model_name: str):
         # 切换全局模型
         new_model = (model_name or "").strip()
@@ -337,7 +368,13 @@ class ImageChatMainWindow(QMainWindow):
         # 改为：AI完成后立即处理下一张，不再固定等待
 
     def handle_new_image(self, image_path):
-        # 处理新截图（自动分析）
+        # 处理新截图（根据自动推理开关决定是否自动分析）
+        if not self.auto_analyze_enabled:
+            # 自动推理关闭：只显示通知，不自动分析
+            self.append_markdown(f"<div class='auto-monitor'>📥 发现新截图（{os.path.basename(image_path)}），已保存（自动推理已关闭，可手动选择图片分析）</div>")
+            return
+        
+        # 自动推理开启：按原逻辑处理
         if self.is_ai_busy:
             self.pending_image = image_path
             self.append_markdown(f"<div class='auto-monitor'>📥 发现新截图（{os.path.basename(image_path)}），等待上轮分析完成...</div>")

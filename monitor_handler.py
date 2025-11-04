@@ -55,20 +55,28 @@ def start_image_server_in_background():
     后台启动image_server.py（截图接收服务）
     返回：True=启动成功，False=启动失败
     """
-    # 检查image_server.py是否存在
-    image_server_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "image_server.py")
-    if not os.path.exists(image_server_path):
-        QMessageBox.critical(None, "文件缺失", f"未找到截图接收服务程序：{image_server_path}\n请确保image_server.py与本程序在同一目录！")
-        return False
-
     try:
         # 构造启动命令（传递全局配置的端口和目录）
-        cmd = [
-            sys.executable,  # 当前Python解释器路径
-            image_server_path,
-            "--port", str(config.SERVER_PORT),
-            "--save-dir", config.MONITOR_DIR
-        ]
+        if getattr(sys, 'frozen', False):
+            # 打包为单 exe：调用自身 exe 的自举分支
+            cmd = [
+                sys.executable,
+                "--run-image-server",
+                "--port", str(config.SERVER_PORT),
+                "--save-dir", config.MONITOR_DIR
+            ]
+        else:
+            # 开发态：调用独立的 image_server.py
+            image_server_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "image_server.py")
+            if not os.path.exists(image_server_path):
+                QMessageBox.critical(None, "文件缺失", f"未找到截图接收服务程序：{image_server_path}\n请确保image_server.py与本程序在同一目录！")
+                return False
+            cmd = [
+                sys.executable,  # 当前Python解释器路径
+                image_server_path,
+                "--port", str(config.SERVER_PORT),
+                "--save-dir", config.MONITOR_DIR
+            ]
         # Windows隐藏命令行窗口，其他系统正常启动
         startupinfo = subprocess.STARTUPINFO()
         startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
