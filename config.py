@@ -7,7 +7,10 @@ DEFAULT_SERVER_PORT = 7893  # 客户端/服务端通信端口
 DEFAULT_MONITOR_DIR = "received_screenshots"  # 截图保存/监控目录
 DEFAULT_CLEAR_INTERVAL = 180  # 自动清屏间隔（秒，默认3分钟）
 WAIT_SECONDS_AFTER_ANALYSIS = 30  # AI分析后等待间隔（秒）
-DEFAULT_MODEL = "doubao-seed-1-6-251015"  # 默认模型
+DEFAULT_MODEL = "doubao-seed-1-6-251015"  # ARK 默认模型
+DEFAULT_GEMINI_MODEL = "models/gemini-2.5-flash"  # Gemini 默认模型
+DEFAULT_GEMINI_API_KEY = "AIzaSyBp1EGZxIBODHYql53nE1gchZ3TQpyqg08"  # Gemini 默认API Key（测试用）
+DEFAULT_PROVIDER = "ark"  # ark | gemini
 
 # -------------------------- Markdown样式（全局共用） --------------------------
 MARKDOWN_CSS = """
@@ -39,3 +42,7 @@ MONITOR_DIR = DEFAULT_MONITOR_DIR
 CLEAR_INTERVAL = DEFAULT_CLEAR_INTERVAL
 image_server_process = None  # 后台截图接收服务进程
 MODEL = DEFAULT_MODEL  # 当前使用的模型
+PROVIDER = DEFAULT_PROVIDER  # 当前提供方：ark | gemini
+# 运行时由初始化窗口设置
+api_key = DEFAULT_API_KEY  # ARK API Key
+gemini_api_key = DEFAULT_GEMINI_API_KEY  # Google Gemini API Key（可在初始化窗口覆盖）

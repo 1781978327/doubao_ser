@@ -72,7 +72,29 @@ class InitConfigDialog(QDialog):
         clear_layout.addWidget(self.clear_edit)
         main_layout.addLayout(clear_layout)
 
-        # 5. 确认/取消按钮
+        # 5. 模型提供方与Gemini Key
+        provider_layout = QHBoxLayout()
+        provider_label = QLabel("提供方：")
+        provider_label.setFixedWidth(100)
+        self.provider_select = QComboBox()
+        self.provider_select.addItems(["ark", "gemini"])  # ark=豆包(ARK) | gemini=Google Gemini
+        self.provider_select.setCurrentText(getattr(config, "PROVIDER", "ark"))
+        provider_layout.addWidget(provider_label)
+        provider_layout.addWidget(self.provider_select)
+        main_layout.addLayout(provider_layout)
+
+        gemini_layout = QHBoxLayout()
+        gemini_label = QLabel("Gemini API Key：")
+        gemini_label.setFixedWidth(100)
+        self.gemini_edit = QLineEdit()
+        self.gemini_edit.setPlaceholderText("可留空，仅在选择Gemini时需要")
+        if getattr(config, "gemini_api_key", ""):
+            self.gemini_edit.setText(config.gemini_api_key)
+        gemini_layout.addWidget(gemini_label)
+        gemini_layout.addWidget(self.gemini_edit)
+        main_layout.addLayout(gemini_layout)
+
+        # 6. 确认/取消按钮
         btn_layout = QHBoxLayout()
         self.confirm_btn = QPushButton("确认配置并启动服务")
         self.confirm_btn.clicked.connect(self.confirm_config)
@@ -124,6 +146,16 @@ class InitConfigDialog(QDialog):
         config.SERVER_PORT = server_port
         config.MONITOR_DIR = monitor_dir
         config.CLEAR_INTERVAL = clear_interval
+        # 提供方 & Gemini Key
+        config.PROVIDER = self.provider_select.currentText().strip()
+        config.gemini_api_key = self.gemini_edit.text().strip()
+        # 根据提供方自动设置合适的默认模型，避免仍显示对方阵营的ID
+        if config.PROVIDER == "gemini":
+            if not getattr(config, "MODEL", "").startswith("models/"):
+                config.MODEL = getattr(config, "DEFAULT_GEMINI_MODEL", "models/gemini-2.5-flash")
+        else:
+            if getattr(config, "MODEL", "").startswith("models/"):
+                config.MODEL = getattr(config, "DEFAULT_MODEL", "doubao-seed-1-6-251015")
         self.accept()
 
 
@@ -188,21 +220,24 @@ class ImageChatMainWindow(QMainWindow):
         self.model_select.setEditable(True)
         # 常用候选，可自行扩展
         self.model_select.addItems([
-            # Doubao 家族
+            # Doubao 家族（ARK）
             "doubao-seed-1-6-lite-251015",
             "doubao-seed-1-6-vision-250815",
             "doubao-seed-1-6-250615",
             "doubao-seed-1-6-251015",
             "doubao-seed-1-6-flash-250828",
             "doubao-seed-1-6-thinking-250715",
-            # DeepSeek 系列
+            # DeepSeek 系列（ARK）
             "deepseek-v3-1-terminus",
             "deepseek-v3-1-250821",
+            # Gemini 常用
+            "models/gemini-2.5-flash",
+            "models/gemini-2.5-pro",
+            "models/gemini-2.5-flash-lite",
+            "models/text-embedding-004",
         ])
-        # 将当前全局模型作为默认值（若不在列表，会自动作为可编辑文本显示）
-        if config.MODEL not in [self.model_select.itemText(i) for i in range(self.model_select.count())]:
-            self.model_select.addItem(config.MODEL)
-        self.model_select.setCurrentText(config.MODEL)
+        # 根据当前提供方设置模型候选
+        self.set_model_options_for_provider(getattr(config, "PROVIDER", "ark"))
         self.model_select.currentTextChanged.connect(self.on_model_changed)
 
         self.skip_wait_btn = QPushButton("跳过30秒等待")
@@ -265,6 +300,7 @@ class ImageChatMainWindow(QMainWindow):
 - 截图监控目录：{os.path.abspath(config.MONITOR_DIR)}
 - 自动清屏间隔：{config.CLEAR_INTERVAL // 60}分钟（{config.CLEAR_INTERVAL}秒）
 - 模型：{config.MODEL}
+- 提供方：{config.PROVIDER}
 - API Key：已配置（显示前10位：{config.client.api_key[:10]}...）
 <div class='server-status'>🔌 截图接收服务状态：{server_status}</div>
 """
@@ -352,6 +388,53 @@ class ImageChatMainWindow(QMainWindow):
         config.MODEL = new_model
         self.append_markdown(f"<div class='config-info'>🧠 已切换模型为：{config.MODEL}</div>")
 
+    def set_model_options_for_provider(self, provider: str):
+        """根据提供方切换模型下拉选项，并同步默认模型。"""
+        self.model_select.blockSignals(True)
+        self.model_select.clear()
+
+        if provider == "gemini":
+            options = [
+                "models/gemini-2.5-flash",
+                "models/gemini-2.5-pro",
+                "models/gemini-2.5-flash-lite",
+                "models/text-embedding-004",
+            ]
+            default_model = getattr(config, "DEFAULT_GEMINI_MODEL", "models/gemini-2.5-flash")
+        else:
+            options = [
+                "doubao-seed-1-6-lite-251015",
+                "doubao-seed-1-6-vision-250815",
+                "doubao-seed-1-6-250615",
+                "doubao-seed-1-6-251015",
+                "doubao-seed-1-6-flash-250828",
+                "doubao-seed-1-6-thinking-250715",
+                "deepseek-v3-1-terminus",
+                "deepseek-v3-1-250821",
+            ]
+            default_model = getattr(config, "DEFAULT_MODEL", "doubao-seed-1-6-251015")
+
+        self.model_select.addItems(options)
+
+        current = config.MODEL
+        if provider == "gemini":
+            if not str(current).startswith("models/"):
+                current = default_model
+        else:
+            if str(current).startswith("models/"):
+                current = default_model
+        config.MODEL = current
+        if current not in options:
+            self.model_select.addItem(current)
+        self.model_select.setCurrentText(current)
+        self.model_select.blockSignals(False)
+
+    def on_provider_changed(self, provider: str):
+        provider = (provider or "ark").strip()
+        config.PROVIDER = provider
+        self.set_model_options_for_provider(provider)
+        self.append_markdown(f"<div class='config-info'>🔁 已切换提供方为：{provider}，模型已同步为 {config.MODEL}</div>")
+
     def scroll_to_bottom(self):
         # 滚动到对话底部
         cursor = self.history_area.textCursor()
@@ -401,7 +484,23 @@ class ImageChatMainWindow(QMainWindow):
         self.append_markdown(f"<div class='user-tag'>👤 自动提问：</div>{question}\n")
         self.append_markdown(f"<div class='status'>🤖 AI：正在分析新截图...</div>\n")
         
-        self.ai_thread = ApiThread(self.base64_image, question)
+        # 读取原始图片字节与MIME（供Gemini使用）
+        image_bytes = None
+        image_mime = "image/png"
+        try:
+            with open(image_path, "rb") as f:
+                image_bytes = f.read()
+            lp = image_path.lower()
+            if lp.endswith(".jpg") or lp.endswith(".jpeg"):
+                image_mime = "image/jpeg"
+            elif lp.endswith(".webp"):
+                image_mime = "image/webp"
+            elif lp.endswith(".bmp"):
+                image_mime = "image/bmp"
+        except Exception:
+            pass
+
+        self.ai_thread = ApiThread(self.base64_image, question, image_bytes=image_bytes, image_mime=image_mime)
         self.ai_thread.result_signal.connect(self.show_ai_result)
         self.ai_thread.start()
 
